@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="oh_my_baby"
+        android:label="baby_come_to_me"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

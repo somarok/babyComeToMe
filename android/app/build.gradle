@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.somarok.oh_my_baby"
+    namespace = "com.somarok.baby_come_to_me"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.somarok.oh_my_baby"
+        applicationId = "com.somarok.baby_come_to_me"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

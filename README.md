@@ -1,4 +1,4 @@
-# oh_my_baby
+# baby_come_to_me
 
 진통 기록 앱
 

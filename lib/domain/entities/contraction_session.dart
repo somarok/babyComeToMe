@@ -21,6 +21,22 @@ class ContractionSession {
   String toString() {
     return 'ContractionSession(start: $contractionStart, end: $contractionEnd, nextStart: $nextContractionStart)';
   }
+
+  Map<String, dynamic> toJson() => {
+        'contractionStart': contractionStart.toIso8601String(),
+        'contractionEnd': contractionEnd.toIso8601String(),
+        'nextContractionStart': nextContractionStart?.toIso8601String(),
+      };
+
+  static ContractionSession fromJson(Map<String, dynamic> json) {
+    return ContractionSession(
+      contractionStart: DateTime.parse(json['contractionStart'] as String),
+      contractionEnd: DateTime.parse(json['contractionEnd'] as String),
+      nextContractionStart: json['nextContractionStart'] != null
+          ? DateTime.parse(json['nextContractionStart'] as String)
+          : null,
+    );
+  }
 }
 
 extension ContractionSessionExtension on ContractionSession {

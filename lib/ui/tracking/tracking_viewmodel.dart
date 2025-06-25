@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/entities/contraction_session.dart';
 
@@ -34,6 +37,9 @@ class TrackingState {
 
 class TrackingViewModel extends StateNotifier<TrackingState> {
   TrackingViewModel() : super(const TrackingState());
+  static const _keyStartTime = 'lastStartTime';
+  static const _keyPhase = 'lastPhase';
+  static const _keySessions = 'savedSessions';
 
   void toggle() {
     final now = DateTime.now();
@@ -45,6 +51,7 @@ class TrackingViewModel extends StateNotifier<TrackingState> {
           phase: TrackingPhase.contracting,
           tempStartTime: now,
         );
+        saveTrackingState(now, TrackingPhase.contracting);
         break;
 
       case TrackingPhase.contracting:
@@ -61,6 +68,7 @@ class TrackingViewModel extends StateNotifier<TrackingState> {
             sessions: [...state.sessions, newSession],
           );
         }
+        saveTrackingState(now, TrackingPhase.resting);
         break;
 
       case TrackingPhase.resting:
@@ -80,11 +88,95 @@ class TrackingViewModel extends StateNotifier<TrackingState> {
           tempStartTime: now,
           sessions: updated,
         );
+        saveTrackingState(now, TrackingPhase.contracting);
         break;
     }
+    _saveState();
   }
 
   void reset() {
     state = const TrackingState();
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.remove(_keyStartTime);
+      prefs.remove(_keyPhase);
+      prefs.remove(_keySessions);
+    });
+  }
+
+  /// 앱 종료 전 또는 상태 변경 시 저장
+  Future<void> _saveState() async {
+    final prefs = await SharedPreferences.getInstance();
+    // phase & tempStartTime
+    if (state.tempStartTime != null) {
+      prefs.setString(_keyStartTime, state.tempStartTime!.toIso8601String());
+      prefs.setString(_keyPhase, _phaseToString(state.phase));
+    } else {
+      prefs.remove(_keyStartTime);
+      prefs.remove(_keyPhase);
+    }
+    // sessions
+    final jsonList = state.sessions.map((s) => jsonEncode(s.toJson())).toList();
+    await prefs.setStringList(_keySessions, jsonList);
+  }
+
+  /// 앱 재실행 시 호출해서 상태 복원
+  Future<void> restoreTrackingState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawTime = prefs.getString('lastStartTime');
+    final rawPhase = prefs.getString('lastPhase');
+
+    if (rawTime != null && rawPhase != null) {
+      final restoredStart = DateTime.tryParse(rawTime);
+      final restoredPhase = _parsePhase(rawPhase);
+      if (restoredStart != null && restoredPhase != null) {
+        state = state.copyWith(
+          tempStartTime: restoredStart,
+          phase: restoredPhase,
+        );
+      }
+    }
+    final saved = prefs.getStringList(_keySessions);
+    if (saved != null) {
+      final list = saved.map((e) {
+        final map = jsonDecode(e) as Map<String, dynamic>;
+        return ContractionSession.fromJson(map);
+      }).toList();
+      state = state.copyWith(sessions: list);
+    }
+  }
+
+  Future<void> saveTrackingState(DateTime time, TrackingPhase phase) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('lastStartTime', time.toIso8601String());
+    await prefs.setString('lastPhase', _phaseToString(phase));
+  }
+
+  /// 저장 제거
+  Future<void> clearTrackingState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('lastStartTime');
+    await prefs.remove('lastPhase');
+  }
+
+  String _phaseToString(TrackingPhase phase) {
+    switch (phase) {
+      case TrackingPhase.contracting:
+        return 'contraction';
+      case TrackingPhase.resting:
+        return 'rest';
+      default:
+        return 'idle';
+    }
+  }
+
+  TrackingPhase? _parsePhase(String raw) {
+    switch (raw) {
+      case 'contraction':
+        return TrackingPhase.contracting;
+      case 'rest':
+        return TrackingPhase.resting;
+      default:
+        return null;
+    }
   }
 }

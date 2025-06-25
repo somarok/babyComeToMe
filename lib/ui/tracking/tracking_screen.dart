@@ -5,17 +5,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/contraction_session.dart';
 import 'tracking_viewmodel.dart';
 
-class TrackingScreen extends ConsumerWidget {
+class TrackingScreen extends ConsumerStatefulWidget {
   const TrackingScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TrackingScreen> createState() => _TrackingScreenState();
+}
+
+class _TrackingScreenState extends ConsumerState<TrackingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 앱 실행(또는 화면이 최초 마운트) 시 저장된 상태 복원
+    ref.read(trackingViewModelProvider.notifier).restoreTrackingState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(trackingViewModelProvider);
     final viewModel = ref.read(trackingViewModelProvider.notifier);
+    final elapsed = ref.watch(elapsedTimeProvider).value;
     final isContracting = state.phase == TrackingPhase.contracting;
     final isResting = state.phase == TrackingPhase.resting;
     final isIdle = state.phase == TrackingPhase.idle;
-    final elapsed = ref.watch(elapsedTimeProvider).value;
     final sessions = state.sessions.reversed.toList();
 
     return Scaffold(
@@ -47,7 +59,7 @@ class TrackingScreen extends ConsumerWidget {
                       itemBuilder: (context, index) {
                         final session = sessions[index];
                         return _buildSessionCard(
-                            session, sessions.length - index);
+                            session, sessions.length - index, state);
                       },
                     ),
             ),
@@ -93,14 +105,34 @@ class TrackingScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSessionCard(ContractionSession session, int index) {
+  Widget _buildSessionCard(
+      ContractionSession session, int index, TrackingState state) {
+    // 1) 진통 지속 시간
     final contraction = _formatDuration(session.contractionDuration);
-    final rest = session.restDuration != null
-        ? _formatDuration(session.restDuration!)
-        : '- 측정중';
-    final total = session.totalDuration != null
-        ? _formatDuration(session.totalDuration!)
-        : '- 측정중';
+
+    // 2) 휴식 시간: 이미 기록된 session.restDuration 이 우선,
+    //    없으면(=ongoing rest) 화면 상태와 세션 인덱스로 판단해서 실시간 계산
+    Duration? restDur = session.restDuration;
+    if (restDur == null &&
+        state.phase == TrackingPhase.resting &&
+        index == state.sessions.length - 1) {
+      // 마지막 세션이면서 지금 휴식 중이라면
+      restDur = DateTime.now().difference(session.contractionEnd);
+    }
+    final rest = restDur != null ? _formatDuration(restDur) : '--';
+
+    // 3) 총 소요 시간 (진통 + 휴식)
+    String total;
+    if (session.nextContractionStart != null) {
+      total = _formatDuration(session.totalDuration!);
+    } else if (state.phase == TrackingPhase.resting &&
+        index == state.sessions.length - 1) {
+      // ongoing rest: contractionStart → now
+      total =
+          _formatDuration(DateTime.now().difference(session.contractionStart));
+    } else {
+      total = '--';
+    }
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),

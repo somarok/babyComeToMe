@@ -12,7 +12,6 @@ class TrackingScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(trackingViewModelProvider);
     final viewModel = ref.read(trackingViewModelProvider.notifier);
-
     final isContracting = state.phase == TrackingPhase.contracting;
     final isResting = state.phase == TrackingPhase.resting;
     final isIdle = state.phase == TrackingPhase.idle;
@@ -21,7 +20,6 @@ class TrackingScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('진통 기록'),
         actions: [
           IconButton(
             onPressed: viewModel.reset,
@@ -40,16 +38,6 @@ class TrackingScreen extends ConsumerWidget {
                 padding: const EdgeInsets.only(bottom: 16.0),
                 child: _buildLiveTimer(state, elapsed),
               ),
-            ElevatedButton(
-              onPressed: viewModel.toggle,
-              child: Text(
-                isIdle
-                    ? '진통 시작'
-                    : isContracting
-                        ? '진통 멈춤'
-                        : '다음 진통 시작',
-              ),
-            ),
             const SizedBox(height: 32),
             Expanded(
               child: sessions.isEmpty
@@ -63,6 +51,26 @@ class TrackingScreen extends ConsumerWidget {
                       },
                     ),
             ),
+            SizedBox(
+              width: double.infinity,
+              height: 92,
+              child: ElevatedButton(
+                onPressed: viewModel.toggle,
+                child: Text(
+                  isIdle
+                      ? '진통 시작'
+                      : isContracting
+                          ? '진통 멈춤'
+                          : '다음 진통 시작',
+                  style: TextStyle(
+                    fontSize: 24,
+                    color: Colors.deepPurple,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -74,10 +82,14 @@ class TrackingScreen extends ConsumerWidget {
 
     final isContracting = state.phase == TrackingPhase.contracting;
     return Text(
+      textAlign: TextAlign.center,
       isContracting
-          ? '진통 중: ${_formatDuration(elapsed)}'
-          : '휴식 중: ${_formatDuration(elapsed)}',
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ? '진통 중\n ${_formatDuration(elapsed)}'
+          : '휴식 중\n ${_formatDuration(elapsed)}',
+      style: const TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+      ),
     );
   }
 
@@ -85,24 +97,101 @@ class TrackingScreen extends ConsumerWidget {
     final contraction = _formatDuration(session.contractionDuration);
     final rest = session.restDuration != null
         ? _formatDuration(session.restDuration!)
-        : '-';
+        : '- 측정중';
     final total = session.totalDuration != null
         ? _formatDuration(session.totalDuration!)
-        : '-';
+        : '- 측정중';
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: ListTile(
-        title: Text('$index회차'),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '진통: ${_formatTime(session.contractionStart)} ~ ${_formatTime(session.contractionEnd)} ($contraction)',
-            ),
-            Text('휴식: $rest'),
-            Text('총 $total'),
-          ],
+        title: IntrinsicHeight(
+          child: Row(
+            children: [
+              Text(
+                '$index\n회차',
+                textAlign: TextAlign.center,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: VerticalDivider(
+                  color: Colors.deepPurple,
+                  thickness: 0.8,
+                  indent: 8,
+                  endIndent: 8,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        text: '진통 ',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        children: <TextSpan>[
+                          TextSpan(
+                              text:
+                                  '${_formatTime(session.contractionStart)} ~ ${_formatTime(session.contractionEnd)} ($contraction)',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 18,
+                                fontWeight: FontWeight.normal,
+                              )),
+                        ],
+                      ),
+                    ),
+                    RichText(
+                      text: TextSpan(
+                        text: '휴식 ',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        children: <TextSpan>[
+                          TextSpan(
+                              text: rest,
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 18,
+                                fontWeight: FontWeight.normal,
+                              )),
+                        ],
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: RichText(
+                        textAlign: TextAlign.end,
+                        text: TextSpan(
+                          text: '총 ',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          children: <TextSpan>[
+                            TextSpan(
+                                text: total,
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.normal,
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

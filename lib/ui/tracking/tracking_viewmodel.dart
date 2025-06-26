@@ -103,6 +103,11 @@ class TrackingViewModel extends StateNotifier<TrackingState> {
     });
   }
 
+  void stopTracking() {
+    state = state.copyWith(phase: TrackingPhase.idle);
+    _saveState();
+  }
+
   /// 앱 종료 전 또는 상태 변경 시 저장
   Future<void> _saveState() async {
     final prefs = await SharedPreferences.getInstance();
@@ -178,5 +183,25 @@ class TrackingViewModel extends StateNotifier<TrackingState> {
       default:
         return null;
     }
+  }
+
+  /// 세션 인덱스로 삭제
+  void removeSessionAt(int index) {
+    if (index < 0 || index >= state.sessions.length) return;
+    final sessions = List<ContractionSession>.from(state.sessions);
+    final removed = sessions[index];
+    // 이전 세션이 존재하면 nextContractionStart를 조정
+    if (index > 0) {
+      final prev = sessions[index - 1];
+      final updatedPrev = ContractionSession(
+        contractionStart: prev.contractionStart,
+        contractionEnd: prev.contractionEnd,
+        nextContractionStart: removed.nextContractionStart,
+      );
+      sessions[index - 1] = updatedPrev;
+    }
+    sessions.removeAt(index);
+    state = state.copyWith(sessions: sessions);
+    _saveState();
   }
 }

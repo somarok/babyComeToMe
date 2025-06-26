@@ -26,7 +26,6 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     final viewModel = ref.read(trackingViewModelProvider.notifier);
     final elapsed = ref.watch(elapsedTimeProvider).value;
     final isContracting = state.phase == TrackingPhase.contracting;
-    final isResting = state.phase == TrackingPhase.resting;
     final isIdle = state.phase == TrackingPhase.idle;
     final sessions = state.sessions.reversed.toList();
 
@@ -38,6 +37,11 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
             icon: const Icon(Icons.delete_forever),
             tooltip: '전체 초기화',
           ),
+          IconButton(
+            onPressed: viewModel.stopTracking,
+            icon: const Icon(Icons.pause),
+            tooltip: '기록 중지',
+          ),
         ],
       ),
       body: Padding(
@@ -45,11 +49,10 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
         child: Column(
           children: [
             const SizedBox(height: 24),
-            if (isContracting || isResting)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: _buildLiveTimer(state, elapsed),
-              ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: _buildLiveTimer(state, elapsed),
+            ),
             const SizedBox(height: 32),
             Expanded(
               child: sessions.isEmpty
@@ -58,8 +61,29 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                       itemCount: sessions.length,
                       itemBuilder: (context, index) {
                         final session = sessions[index];
-                        return _buildSessionCard(
-                            session, sessions.length - index, state);
+                        // 실제 세션 인덱스 계산 (reversed이므로)
+                        final realIndex = state.sessions.length - 1 - index;
+                        return Dismissible(
+                          key: Key(session.contractionStart.toIso8601String()),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            color: Colors.red,
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: const Icon(Icons.delete,
+                                color: Colors.white, size: 32),
+                          ),
+                          onDismissed: (direction) {
+                            ref
+                                .read(trackingViewModelProvider.notifier)
+                                .removeSessionAt(realIndex);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('기록이 삭제되었습니다.')),
+                            );
+                          },
+                          child: _buildSessionCard(
+                              session, sessions.length - index, state),
+                        );
                       },
                     ),
             ),
@@ -67,6 +91,10 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
               width: double.infinity,
               height: 92,
               child: ElevatedButton(
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.all(Colors.deepPurple),
+                  foregroundColor: WidgetStateProperty.all(Colors.white),
+                ),
                 onPressed: viewModel.toggle,
                 child: Text(
                   isIdle
@@ -76,7 +104,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                           : '다음 진통 시작',
                   style: TextStyle(
                     fontSize: 24,
-                    color: Colors.deepPurple,
+                    color: Colors.white,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -90,7 +118,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
   }
 
   Widget _buildLiveTimer(TrackingState state, Duration? elapsed) {
-    if (elapsed == null) return const SizedBox.shrink();
+    if (elapsed == null) return const Text('측정을 위해 아래 \'진통 시작\' 버튼을 눌러주세요.');
 
     final isContracting = state.phase == TrackingPhase.contracting;
     return Text(

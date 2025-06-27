@@ -33,14 +33,14 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
       appBar: AppBar(
         actions: [
           IconButton(
-            onPressed: viewModel.reset,
-            icon: const Icon(Icons.delete_forever),
-            tooltip: '전체 초기화',
-          ),
-          IconButton(
             onPressed: viewModel.stopTracking,
             icon: const Icon(Icons.pause),
             tooltip: '기록 중지',
+          ),
+          IconButton(
+            onPressed: viewModel.reset,
+            icon: const Icon(Icons.delete_forever),
+            tooltip: '전체 초기화',
           ),
         ],
       ),

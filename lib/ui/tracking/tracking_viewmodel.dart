@@ -104,7 +104,50 @@ class TrackingViewModel extends StateNotifier<TrackingState> {
   }
 
   void stopTracking() {
-    state = state.copyWith(phase: TrackingPhase.idle);
+    // 진통 중이면 현재까지의 진통 시간을 기록하고 휴식 시간은 0으로
+    if (state.phase == TrackingPhase.contracting &&
+        state.tempStartTime != null) {
+      final now = DateTime.now();
+      final sessions = List<ContractionSession>.from(state.sessions);
+      // 기존 마지막 세션이 있고, nextContractionStart가 null이면 now로 갱신
+      if (sessions.isNotEmpty && sessions.last.nextContractionStart == null) {
+        final last = sessions.last;
+        sessions[sessions.length - 1] = ContractionSession(
+          contractionStart: last.contractionStart,
+          contractionEnd: last.contractionEnd,
+          nextContractionStart: now,
+        );
+      }
+      sessions.add(ContractionSession(
+        contractionStart: state.tempStartTime!,
+        contractionEnd: now,
+        nextContractionStart: null,
+      ));
+      state = state.copyWith(
+        phase: TrackingPhase.idle,
+        tempStartTime: null,
+        sessions: sessions,
+      );
+    }
+    // 휴식 중이면 현재까지의 휴식 시간을 기록
+    else if (state.phase == TrackingPhase.resting &&
+        state.sessions.isNotEmpty) {
+      final now = DateTime.now();
+      final sessions = List<ContractionSession>.from(state.sessions);
+      final lastSession = sessions.last;
+      sessions[sessions.length - 1] = ContractionSession(
+        contractionStart: lastSession.contractionStart,
+        contractionEnd: lastSession.contractionEnd,
+        nextContractionStart: now,
+      );
+      state = state.copyWith(
+        phase: TrackingPhase.idle,
+        tempStartTime: null,
+        sessions: sessions,
+      );
+    } else {
+      state = state.copyWith(phase: TrackingPhase.idle);
+    }
     _saveState();
   }
 
